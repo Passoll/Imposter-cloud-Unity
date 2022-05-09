@@ -92,7 +92,7 @@
 							i.pos.zw = clipPos.zw;
 
 							//Houdini
-							Normal = float3(-Normal.x,Normal.y,Normal.z);
+							Normal = float3(Normal.x,Normal.y,Normal.z);
 
 							fixed4 color;
 							float3 lightdir = UnityWorldSpaceLightDir(worldPos);
@@ -103,7 +103,6 @@
 							float lthick = baseTex.r;
 						
 							float thickness = 1 - exp(-5 * lthick );
-							thickness *= 1-step(thickness,0.1);
 							color.a = thickness;
 
 							float a = 0.7;
