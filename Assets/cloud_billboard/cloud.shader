@@ -141,7 +141,7 @@ Shader "Custom/cloud" {
                 float3 Normal = normalize(mul(tangentToWorld, worldNormal)) ;
 				fixed4 color;
 				//Houdini to unity
-				Normal = float3(-Normal.x,Normal.y,Normal.z);
+				//Normal = float3(-Normal.x,Normal.y,Normal.z);
 				
 				float3 lightdir = WorldSpaceLightDir(i.worldpos);
 				float3 viewdir = normalize(UnityWorldSpaceViewDir(i.worldpos));
