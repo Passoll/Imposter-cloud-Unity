@@ -7,13 +7,15 @@
 		_Frames("Frames", Float) = 16
 		_ImpostorSize("Impostor Size", Float) = 1
 		_Offset("Offset", Vector) = (0,0,0,0)
+		_ClipMask("Clip", Range( 0 , 1)) = 0.5
 		
 		_AI_SizeOffset( "Size & Offset", Vector ) = ( 0,0,0,0 )
-		
+		_Fadedis("Fadedistance", Float) = 20
 		_TextureBias("Texture Bias", Float) = -1
-		_Parallax("Parallax", Range( -1 , 1)) = 1
+		_Parallax("Parallax", Range( -2 , 2)) = 1
 		_DepthSize("DepthSize", Float) = 1
 		_TintColor ("Color", Color) = (1,1,1,1)
+		_Ambientcolor ("Color", Color) = (1,1,1,1)
 	}
 	
 	SubShader
@@ -24,7 +26,7 @@
 		Pass
 				{
 					Tags { "LightMode"="ForwardBase" }
-					ZWrite Off
+					ZWrite On
 					Blend SrcAlpha OneMinusSrcAlpha
 					ColorMask rgb
 					Cull back
@@ -44,6 +46,8 @@
 						
 
 						fixed3 _TintColor;
+						fixed3 _Ambientcolor;
+						float _Fadedis;
 
 						struct v2f
 						{
@@ -85,25 +89,29 @@
 							imp.viewPos = i.viewPos;
 							half4 baseTex;
 							half3 Normal;
-
+							
 							float4 clipPos;
 							float3 worldPos;
 							OctaImpostorFragment(imp, Normal, clipPos, worldPos, baseTex );
 							i.pos.zw = clipPos.zw;
 
-							//Houdini
-							Normal = float3(Normal.x,Normal.y,Normal.z);
 
+							//Houdini fix
+							Normal = float3(Normal.x,Normal.z,Normal.y) * 2 - 1;
+							Normal = UnityObjectToWorldNormal(Normal);
+							
 							fixed4 color;
 							float3 lightdir = UnityWorldSpaceLightDir(worldPos);
 							float3 viewdir = normalize(UnityWorldSpaceViewDir(worldPos));
 							float NL = saturate(dot(Normal,lightdir));
 							float VL = dot(lightdir, viewdir);
 						
-							float lthick = baseTex.r;
+							half1 dis = smoothstep(-i.viewPos.z,0,_Fadedis);
+							
+							float lthick = baseTex.a;
 						
 							float thickness = 1 - exp(-5 * lthick );
-							color.a = thickness;
+							color.a = saturate(thickness * 1.8 * dis);
 
 							float a = 0.7;
 							float atten = 4;
@@ -112,9 +120,15 @@
 							float phaselight = 2.55 * (1 + VL * VL );
 							float sss = saturate(dot(viewdir,-H));
 							float spe = pow(sss, atten) * (-thickness + 1);
-						
-							color.rgb = _TintColor * thickness * phaselight * _LightColor0 / 4 / 3.14 + 0.5* NL * _LightColor0 + spe* 1.5 * _LightColor0 ;
-							
+
+							float3 ambient = (1-lthick) * 0.3 ;	
+							float3 backlight = spe* 1.7 * _LightColor0 ;
+							float3 directlight = NL * _LightColor0 * 0.3 ;
+							float3 scatter = _TintColor * smoothstep(pow(1-thickness,0.6),0,0.05) / 4 / 3.14 * 4;
+	
+							color.rgb = scatter + directlight + backlight + ambient + 0.25 * _Ambientcolor * (1.5-NL) ;
+							//return half4(baseTex.rgb ,1);
+
 							return color;
 						}
 						ENDCG

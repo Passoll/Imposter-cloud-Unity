@@ -23,12 +23,6 @@ float2 VectortoOctahedron( float3 N )
 	return N.xy;
 }
 
-float2 VectortoHemiOctahedron( float3 N )
-{
-	N.xy /= dot( 1.0, abs(N) );
-	return float2( N.x + N.y, N.x - N.y );
-}
-
 float3 OctahedronToVector( float2 Oct )
 {
 	float3 N = float3( Oct, 1.0 - dot( 1.0, abs(Oct) ) );
@@ -92,8 +86,8 @@ inline void RayPlaneIntersectionUV( float3 normal, float3 rayPosition, float3 ra
 	if( t <= 0.0 ) // not intersecting
 		uvs = 0;
 	
-	float3x3 worldToLocal = float3x3( tangent, bitangent, normal ); // TBN (same as doing separate dots?, assembly looks the same)
-	localNormal = normalize( mul( worldToLocal, rayDirection ) );
+	float3x3 worldToLocal = float3x3( tangent,bitangent,normal); // TBN (same as doing separate dots?, assembly looks the same)
+	localNormal = normalize( mul( worldToLocal, rayDirection ) );//ray in local
 }
 
 inline void OctaImpostorVertex( inout ImposterData imp )
@@ -112,10 +106,9 @@ inline void OctaImpostorVertex( inout ImposterData imp )
 	// Basic data
 	float3 worldOrigin = 0;
 	float4 perspective = float4( 0, 0, 0, 1 );
-	// if there is no perspective we offset world origin with a 5000 view dir vector, otherwise we use the original world position
 	
-	float3 worldCameraPos = worldOrigin + mul( UNITY_MATRIX_I_V, perspective ).xyz;
-
+	//float3 worldCameraPos = worldOrigin + mul( UNITY_MATRIX_I_V, perspective ).xyz;
+	float3 worldCameraPos = _WorldSpaceCameraPos;
 	float3 objectCameraPosition = mul( ai_WorldToObject, float4( worldCameraPos, 1 ) ).xyz - _Offset.xyz; //ray origin
 	float3 objectCameraDirection = normalize( objectCameraPosition );
 
@@ -134,13 +127,13 @@ inline void OctaImpostorVertex( inout ImposterData imp )
 	float2 frameOcta = VectortoOctahedron( objectCameraDirection.xzy ) * 0.5 + 0.5;
 
 	// Setup for octahedron
-	float2 prevOctaFrame = frameOcta * prevFrame;
-	float2 baseOctaFrame = floor( prevOctaFrame );
-	float2 fractionOctaFrame = ( baseOctaFrame * fractionsFrame );
+	float2 prevOctaFrame = frameOcta * prevFrame;//frame的具体数字
+	float2 baseOctaFrame = floor( prevOctaFrame );//frame的整数
+	float2 fractionOctaFrame = ( baseOctaFrame * fractionsFrame );//整数frame在整张贴图的uv位置
 
 	// Octa 1
-	float2 octaFrame1 = ( baseOctaFrame * fractionsPrevFrame ) * 2.0 - 1.0;
-	float3 octa1WorldY = OctahedronToVector( octaFrame1 ).xzy;
+	float2 octaFrame1 = ( baseOctaFrame * fractionsPrevFrame ) * 2.0 - 1.0;//将uv重新映射回-1到1
+	float3 octa1WorldY = OctahedronToVector( octaFrame1 ).xzy;//重构回世界的线，并且交换zy轴？? 或者我可以理解为叉乘
 
 	float3 octa1LocalY;
 	float2 uvFrame1;
@@ -151,14 +144,12 @@ inline void OctaImpostorVertex( inout ImposterData imp )
 	imp.uvsFrame1 = float4( uvParallax1, uvFrame1) - float4( 0, 0, uvOffset );
 
 	// Octa 2
-	float2 fractPrevOctaFrame = frac( prevOctaFrame );
+	float2 fractPrevOctaFrame = frac( prevOctaFrame );//frame的小数，是具体uv
 	float2 cornerDifference = lerp( float2( 0,1 ) , float2( 1,0 ) , saturate( ceil( ( fractPrevOctaFrame.x - fractPrevOctaFrame.y ) ) ));
 	float2 octaFrame2 = ( ( baseOctaFrame + cornerDifference ) * fractionsPrevFrame ) * 2.0 - 1.0;
-	#ifdef _HEMI_ON
-		float3 octa2WorldY = HemiOctahedronToVector( octaFrame2 ).xzy;
-	#else
-		float3 octa2WorldY = OctahedronToVector( octaFrame2 ).xzy;
-	#endif
+
+	float3 octa2WorldY = OctahedronToVector( octaFrame2 ).xzy;
+
 
 	float3 octa2LocalY;
 	float2 uvFrame2;
@@ -211,7 +202,9 @@ inline void OctaImpostorFragment(in ImposterData imp,inout half3 Normal, inout f
 	weights.z = min( fraction.x, fraction.y );
 
 	float4 parallaxSample1 = tex2Dbias( _Normals, float4( imp.uvsFrame1.zw, 0, depthBias) );
-	float2 parallax1 = ( ( 0.5 - parallaxSample1.a ) * imp.uvsFrame1.xy ) + imp.uvsFrame1.zw;
+	float2 parallax1 =  (( 0.5 - parallaxSample1.a ) * imp.uvsFrame1.xy ) + imp.uvsFrame1.zw;
+
+	//parallax1 = imp.uvsFrame1.zw;
 	float4 parallaxSample2 = tex2Dbias( _Normals, float4( imp.uvsFrame2.zw, 0, depthBias) );
 	float2 parallax2 = ( ( 0.5 - parallaxSample2.a ) * imp.uvsFrame2.xy ) + imp.uvsFrame2.zw;
 	float4 parallaxSample3 = tex2Dbias( _Normals, float4( imp.uvsFrame3.zw, 0, depthBias) );
@@ -225,7 +218,7 @@ inline void OctaImpostorFragment(in ImposterData imp,inout half3 Normal, inout f
 
 	baseTex.rgb = blendedAlbedo.rgb;
 	// early clip
-	baseTex.a = ( blendedAlbedo.a - _ClipMask );
+	baseTex.a = saturate( blendedAlbedo.r - _ClipMask);
 	
 
 
@@ -278,10 +271,12 @@ inline void OctaImpostorFragment(in ImposterData imp,inout half3 Normal, inout f
 	float4 normals3 = tex2Dbias( _Normals, float4( parallax3, 0, textureBias) );
 	float4 blendedNormal = normals1 * weights.x  + normals2 * weights.y + normals3 * weights.z;
 
-	float3 localNormal = blendedNormal.rgb * 2.0 - 1.0;
-	float3 worldNormal = normalize( mul( (float3x3)ai_ObjectToWorld, localNormal ) );
-	Normal = worldNormal;
-
+	//float3 localNormal = blendedNormal.rgb * 2.0 - 1.0;
+	//localNormal = float3(localNormal.x,localNormal.y,localNormal.z);
+	float3 localNormal = blendedNormal.rgb;
+	//float3 worldNormal = UnityObjectToWorldNormal( localNormal);
+	Normal = localNormal;
+	
 	float3 viewPos = imp.viewPos.xyz;
 	float depthOffset = ( ( parallaxSample1.a * weights.x + parallaxSample2.a * weights.y + parallaxSample3.a * weights.z ) - 0.5 /** 2.0 - 1.0*/ ) /** 0.5*/ * _DepthSize * length( ai_ObjectToWorld[ 2 ].xyz );
 	

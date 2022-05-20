@@ -73,24 +73,27 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _BumpScale: 1
-    - _ClipMask: 0
+    - _ClipMask: 0.036
     - _Cutoff: 0.5
-    - _DepthSize: 0.5
+    - _DepthSize: 0
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
+    - _Fadedis: 42.86
     - _Frames: 16
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _ImpostorSize: 0.79
+
+    - _ImpostorSize: 1
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
-    - _Parallax: 0.442
+    - _Parallax: -1
+
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
-    - _TextureBias: -1
+    - _TextureBias: -8
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
