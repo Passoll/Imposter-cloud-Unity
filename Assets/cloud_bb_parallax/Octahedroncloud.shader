@@ -12,7 +12,7 @@
 		_AI_SizeOffset( "Size & Offset", Vector ) = ( 0,0,0,0 )
 		_Fadedis("Fadedistance", Float) = 20
 		_TextureBias("Texture Bias", Float) = -1
-		_Parallax("Parallax", Range( -2 , 2)) = 1
+		_Parallax("Parallax", Range( -1 , 1)) = 1
 		_DepthSize("DepthSize", Float) = 1
 		_TintColor ("Color", Color) = (1,1,1,1)
 		_Ambientcolor ("Color", Color) = (1,1,1,1)
