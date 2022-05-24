@@ -51,6 +51,10 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _Noisemap:
+        m_Texture: {fileID: 2800000, guid: 81d1013f0eb8b954196408db10ce88b4, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _Normals:
         m_Texture: {fileID: 2800000, guid: 20d6045261428be41859554f8c24e323, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -63,9 +67,13 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _noisemap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Floats:
     - _BumpScale: 1
-    - _ClipMask: 0.006
+    - _ClipMask: 0.032
     - _Cutoff: 0.5
     - _DepthSize: 0
     - _DetailNormalMapScale: 1
@@ -86,6 +94,8 @@ Material:
     - _TextureBias: -1
     - _UVSec: 0
     - _ZWrite: 1
+    - _atten: 0.72
+    - _forwardscatter: 0.66
     m_Colors:
     - _AI_SizeOffset: {r: 0, g: 0, b: 0, a: 0}
     - _Ambientcolor: {r: 0.9103774, g: 1, b: 1, a: 1}

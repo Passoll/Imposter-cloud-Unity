@@ -152,7 +152,8 @@ Shader "Custom/cloud" {
 				
 				float thickness = 1 - exp(-5 * lthick );
 				color.a = thickness;
-			
+
+				
 
 				float a = 0.7;
 				float atten = 4;
@@ -163,6 +164,7 @@ Shader "Custom/cloud" {
 				float spe = pow(sss, atten) * (-thickness + 1);
 				
 				color.rgb = _TintColor * thickness * phaselight * _LightColor0 / 4 / 3.14 + 0.5* NL * _LightColor0 + spe* 1.5 * _LightColor0 ;
+		
 				return color;
 		}
 			ENDCG 

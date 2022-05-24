@@ -35,7 +35,7 @@ float3 OctahedronToVector( float2 Oct )
 
 sampler2D _Albedo;
 sampler2D _Normals;
-sampler2D _Emission;
+
 
 float _FramesX;
 float _FramesY;

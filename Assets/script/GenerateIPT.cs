@@ -15,8 +15,11 @@ public class GenerateIPT : MonoBehaviour
             Vector2 p = Random.insideUnitCircle * radius;
             Vector3 pos2 = new Vector3(p.x,0,p.y);
             GameObject obj1 = Instantiate(prefabs, pos2, Quaternion.identity);
-            //obj.transform.localScale = new Vector3(Random.Range(0.7, 1.3));
+            float scale = Random.Range(35, 50);
+            obj1.transform.localScale = new Vector3(scale,scale,scale);
+            obj1.transform.rotation = Quaternion.Lerp(Random.rotation, Quaternion.identity, (float)0.85 ) ;
             Clone.Push(obj1);
+            
         }
     }
 
