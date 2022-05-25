@@ -121,24 +121,25 @@
 							float lthick = baseTex.a ;
 							float thickness = 1 - exp(-5 * lthick );
 							
-							color.a = saturate(thickness * 1.9 * dis);  ;
+							color.a = saturate(thickness * 1.2 * dis);  ;
 							
 							
 							
 							
-							float a = 0.7;
+							float a = 0.33;
+							float edgeatten =10;
 							
-							float forward_scattering =  exp(-5 * lthick );
+							float forward_scattering =  exp(-7 * lthick );
 							forward_scattering = pow(forward_scattering, saturate(_atten * (0.95 + dot(viewdir, lightdir))))  ;
 							
 							
 							float3 H = lightdir + Normal * a;
 							float phaselight = (1 + VL * VL );
 							float sss = saturate(dot(viewdir,-H));
-							float spe = pow(sss, 5) * (-thickness + 1);
+							float spe = pow(sss, edgeatten) * (1.1- thickness);
 
 							//float3 ambient =pow ((1-lthick),0.2 )* 0.3 ;	
-							//float3 backlight = spe* 1.7 * _LightColor0 ;
+							float3 backlight = spe* 1.3 * _LightColor0 ;
 							
 							forward_scattering *=  saturate(1.45 - abs(dot(Normal,lightdir))) ;
 							
@@ -146,7 +147,8 @@
 							//float3 scatter = _TintColor * smoothstep(pow(1-thickness,0.6),0,0.05) / 4 / 3.14 * 4;
 	
 							//color.rgb = 0.25 * _Ambientcolor * (1.5-NL) + forward_scattering * 0.9 ;
-							color.rgb = forward_scattering + directlight + 0.35 * _Ambientcolor * (1.5-NL)*(1- forward_scattering) ;
+							color.rgb = forward_scattering + directlight + 0.45 * _Ambientcolor * (1.5-NL)*(1- forward_scattering) + backlight;
+							//color.rgb = backlight;
 							//return half4(baseTex.rgb ,1);
 
 							return color;

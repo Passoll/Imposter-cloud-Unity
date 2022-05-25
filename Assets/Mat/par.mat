@@ -78,7 +78,7 @@ Material:
     - _DepthSize: 0
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
-    - _Fadedis: 40
+    - _Fadedis: 30
     - _Frames: 16
     - _GlossMapScale: 1
     - _Glossiness: 0.5
