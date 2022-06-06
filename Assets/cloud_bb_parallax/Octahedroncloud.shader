@@ -9,6 +9,7 @@
 		_ImpostorSize("Impostor Size", Float) = 1
 		_Offset("Offset", Vector) = (0,0,0,0)
 		_ClipMask("Clip", Range( 0 , 1)) = 0.5
+		_HeightScale("Heightscale", Float) = 1
 		
 		_forwardscatter("forwardscatter", Range( 0, 10)) = 0
 		_atten("scatter atten", Float) = 10
@@ -70,7 +71,7 @@
 						v2f	vert (appdata_full v ) {
 							v2f o;
 							ImposterData imp;
-							imp.vertex= v.vertex;
+							imp.vertex= v.vertex;//objectspace
 							
 							imp.normal= v.normal;
 							OctaImpostorVertex(imp);

@@ -36,7 +36,7 @@ float3 OctahedronToVector( float2 Oct )
 sampler2D _Albedo;
 sampler2D _Normals;
 
-
+float _HeightScale;
 float _FramesX;
 float _FramesY;
 float _Frames;
@@ -57,28 +57,69 @@ float _EnergyConservingSpecularColor;
 	#define AI_PI          UNITY_PI
 	#define AI_INV_PI      UNITY_INV_PI
 
+float2 ParallaxMapping(float4 frame, inout float depth)
+{
+	
+	float depthlod = 1.0;
+	//高度层数
+	float numLayers = 5;
+	//每层高度
+	float layerHeight = 1.0 / numLayers;
+	// 当前层级高度
+	float currentLayerHeight = 0.5;
+	//视点方向偏移总量
+	float2 P = frame.xy * _HeightScale / _Frames; 
+	//每层高度uv偏移量
+	float2 deltaTexCoords = P / numLayers;
+	//当前 UV
+	float2  currentTexCoords = frame.zw;
+	float currentHeightMapValue = 0.5 - tex2Dlod( _Normals, float4( frame.zw, 0, depthlod)).a ;
+	while(currentLayerHeight < currentHeightMapValue)
+	{
+		// 按高度层级进行 UV 偏移
+		currentTexCoords += deltaTexCoords;
+		// 从高度贴图采样获取的高度
+		currentHeightMapValue = 0.5 - tex2Dlod( _Normals, float4( currentTexCoords, 0, depthlod)).a;  
+		// 采样点高度
+		currentLayerHeight -= layerHeight;  
+	}
+	//前一个采样的点
+	float2 prevTexCoords = currentTexCoords - deltaTexCoords;
+    
+	//线性插值
+	float afterHeight  = currentHeightMapValue - currentLayerHeight;
+	float beforeHeight = tex2Dlod( _Normals, float4( prevTexCoords, 0, depthlod)).a - (currentLayerHeight - layerHeight);
+	float weight =  afterHeight / (afterHeight - beforeHeight);
+	float2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
+	
+    depth = afterHeight;
+	return finalTexCoords;  
+}
+
 inline void RayPlaneIntersectionUV( float3 normal, float3 rayPosition, float3 rayDirection, inout float2 uvs, inout float3 localNormal )
 {
-	// n = normal
+	//这一步相当于有3个frame ，求出不同的frame（和ray dir有一定偏差的虚构local space里求出这个虚拟uv值）
+	// n = normal 在这里也就是camera的向量
 	// p0 = (0, 0, 0) assuming center as zero
 	// l0 = ray position
 	// l = ray direction
 	// solving to:
 	// t = distance along ray that intersects the plane = ((p0 - l0) . n) / (l . n)
 	// p = intersection point
-
+	
+	// ray intersect plane algorithm
 	float lDotN = dot( rayDirection, normal ); // l . n
 	float p0l0DotN = dot( -rayPosition, normal ); // (p0 - l0) . n
 
-	float t = p0l0DotN / lDotN; // if > 0 then it's intersecting
-	float3 p = rayDirection * t + rayPosition;
+	float t = p0l0DotN / lDotN; // if > 0 then it's intersecting，equal to 
+	float3 p = rayDirection * t + rayPosition; //intersectpoint
 
-	// create frame UVs
-	float3 upVector = float3( 0, 1, 0 );
+	// create frame UVs 构建在物体空间中的虚拟物体空间
+	float3 upVector = float3( 0, 1, 0 );//in the objectspace up
 	float3 tangent = normalize( cross( upVector, normal ) + float3( -0.001, 0, 0 ) );
 	float3 bitangent = cross( tangent, normal );
 
-	float frameX = dot( p, tangent );
+	float frameX = dot( p, tangent );//已知向量球xy轴位置
 	float frameZ = dot( p, bitangent );
 
 	uvs = -float2( frameX, frameZ ); // why negative???
@@ -86,8 +127,9 @@ inline void RayPlaneIntersectionUV( float3 normal, float3 rayPosition, float3 ra
 	if( t <= 0.0 ) // not intersecting
 		uvs = 0;
 	
-	float3x3 worldToLocal = float3x3( tangent,bitangent,normal); // TBN (same as doing separate dots?, assembly looks the same)
-	localNormal = normalize( mul( worldToLocal, rayDirection ) );//ray in local
+	float3x3 LocalTovlocal = float3x3( tangent,bitangent,normal); // TBN (same as doing separate dots?, assembly looks the same)
+	localNormal = normalize( mul( LocalTovlocal, rayDirection ) );//ray in virtual local of virtual frame,original annotation is false
+	//这里normalize的原因是近似认为它为z？
 }
 
 inline void OctaImpostorVertex( inout ImposterData imp )
@@ -118,10 +160,10 @@ inline void OctaImpostorVertex( inout ImposterData imp )
 	float3 objectVerticalVector = cross( objectHorizontalVector, objectCameraDirection );
 
 	// Billboard
-	float2 uvExpansion = imp.vertex.xy;
+	float2 uvExpansion = imp.vertex.xy;//obj space,本来平均分的四个象限顶点就会被变换到billboard的位置
 	float3 billboard = objectHorizontalVector * uvExpansion.x + objectVerticalVector * uvExpansion.y;
 
-	float3 localDir = billboard - objectCameraPosition; // ray direction
+	float3 localDir = billboard - objectCameraPosition; // ray direction 后续相当于插值为任意的ray
 
 	// Octahedron Frame
 	float2 frameOcta = VectortoOctahedron( objectCameraDirection.xzy ) * 0.5 + 0.5;
@@ -129,18 +171,19 @@ inline void OctaImpostorVertex( inout ImposterData imp )
 	// Setup for octahedron
 	float2 prevOctaFrame = frameOcta * prevFrame;//frame的具体数字
 	float2 baseOctaFrame = floor( prevOctaFrame );//frame的整数
-	float2 fractionOctaFrame = ( baseOctaFrame * fractionsFrame );//整数frame在整张贴图的uv位置
+	float2 fractionOctaFrame = ( baseOctaFrame * fractionsFrame );//整数frame在整张贴图的uv位置(归零）
 
 	// Octa 1
 	float2 octaFrame1 = ( baseOctaFrame * fractionsPrevFrame ) * 2.0 - 1.0;//将uv重新映射回-1到1
-	float3 octa1WorldY = OctahedronToVector( octaFrame1 ).xzy;//重构回世界的线，并且交换zy轴？? 或者我可以理解为叉乘
+	float3 octa1WorldY = OctahedronToVector( octaFrame1 ).xzy;//重构回世界的向量，并且交换zy轴？? 或者我可以理解为叉乘么？
 
 	float3 octa1LocalY;
 	float2 uvFrame1;
 	RayPlaneIntersectionUV( octa1WorldY, objectCameraPosition, localDir, /*inout*/ uvFrame1, /*inout*/ octa1LocalY );
-
-	float2 uvParallax1 = octa1LocalY.xy * fractionsFrame * parallax;
-	uvFrame1 = ( uvFrame1 * fractionsUVscale + 0.5 ) * fractionsFrame + fractionOctaFrame;
+	//因为normal不是相机空间完整的y（有3frame）所以这里localy是octa的camera space normal是乘上了parallax，得到的就是采样原图的基础偏移向量parallax1
+	//但这里的parallax不是针对pom的，而是针对frame采样上的
+	float2 uvParallax1 = octa1LocalY.xy * fractionsFrame * parallax / octa1LocalY.z; //  octa1LocalY.xy = viewDir.xy / viewDir.z    
+	uvFrame1 = ( uvFrame1 * fractionsUVscale + 0.5 ) * fractionsFrame + fractionOctaFrame;// for converting the parallax into 0-1 (originally -0.5-0.5) then find the all count
 	imp.uvsFrame1 = float4( uvParallax1, uvFrame1) - float4( 0, 0, uvOffset );
 
 	// Octa 2
@@ -155,7 +198,7 @@ inline void OctaImpostorVertex( inout ImposterData imp )
 	float2 uvFrame2;
 	RayPlaneIntersectionUV( octa2WorldY, objectCameraPosition, localDir, /*inout*/ uvFrame2, /*inout*/ octa2LocalY );
 
-	float2 uvParallax2 = octa2LocalY.xy * fractionsFrame * parallax;
+	float2 uvParallax2 = octa2LocalY.xy * fractionsFrame * parallax / octa2LocalY.z;
 	uvFrame2 = ( uvFrame2 * fractionsUVscale + 0.5 ) * fractionsFrame + ( ( cornerDifference * fractionsFrame ) + fractionOctaFrame );
 	imp.uvsFrame2 = float4( uvParallax2, uvFrame2) - float4( 0, 0, uvOffset );
 
@@ -171,7 +214,7 @@ inline void OctaImpostorVertex( inout ImposterData imp )
 	float2 uvFrame3;
 	RayPlaneIntersectionUV( octa3WorldY, objectCameraPosition, localDir, /*inout*/ uvFrame3, /*inout*/ octa3LocalY );
 
-	float2 uvParallax3 = octa3LocalY.xy * fractionsFrame * parallax;
+	float2 uvParallax3 = octa3LocalY.xy * fractionsFrame * parallax / octa3LocalY.z;
 	uvFrame3 = ( uvFrame3 * fractionsUVscale + 0.5 ) * fractionsFrame + ( fractionOctaFrame + fractionsFrame );
 	imp.uvsFrame3 = float4( uvParallax3, uvFrame3) - float4( 0, 0, uvOffset );
 
@@ -200,16 +243,22 @@ inline void OctaImpostorFragment(in ImposterData imp,inout half3 Normal, inout f
 	weights.x = min( invFraction.x, invFraction.y );
 	weights.y = abs( fraction.x - fraction.y );
 	weights.z = min( fraction.x, fraction.y );
-
+	
+    //using zw to sample the depth，the real pom here
+	//0-1 ~ -0.5 0.5
+	/*
 	float4 parallaxSample1 = tex2Dbias( _Normals, float4( imp.uvsFrame1.zw, 0, depthBias) );
 	float2 parallax1 =  (( 0.5 - parallaxSample1.a ) * imp.uvsFrame1.xy ) + imp.uvsFrame1.zw;
-
-	//parallax1 = imp.uvsFrame1.zw;
 	float4 parallaxSample2 = tex2Dbias( _Normals, float4( imp.uvsFrame2.zw, 0, depthBias) );
 	float2 parallax2 = ( ( 0.5 - parallaxSample2.a ) * imp.uvsFrame2.xy ) + imp.uvsFrame2.zw;
 	float4 parallaxSample3 = tex2Dbias( _Normals, float4( imp.uvsFrame3.zw, 0, depthBias) );
 	float2 parallax3 = ( ( 0.5 - parallaxSample3.a ) * imp.uvsFrame3.xy ) + imp.uvsFrame3.zw;
-
+	*/
+	float depth1, depth2, depth3;
+	float2 parallax1 = ParallaxMapping(imp.uvsFrame1, depth1);
+	float2 parallax2 = ParallaxMapping(imp.uvsFrame2, depth2);
+	float2 parallax3 = ParallaxMapping(imp.uvsFrame3, depth3);
+	
 	// albedo alpha
 	float4 albedo1 = tex2Dbias( _Albedo, float4( parallax1, 0, textureBias) );
 	float4 albedo2 = tex2Dbias( _Albedo, float4( parallax2, 0, textureBias) );
@@ -244,26 +293,6 @@ inline void OctaImpostorFragment(in ImposterData imp,inout half3 Normal, inout f
 
 		clip( final - 0.5 );
 	#endif
-
-	
-/*	//other samplling
-	// Emission Occlusion
-	float4 mask1 = tex2Dbias( _Emission, float4( parallax1, 0, textureBias) );
-	float4 mask2 = tex2Dbias( _Emission, float4( parallax2, 0, textureBias) );
-	float4 mask3 = tex2Dbias( _Emission, float4( parallax3, 0, textureBias) );
-	float4 blendedMask = mask1 * weights.x  + mask2 * weights.y + mask3 * weights.z;
-	o.Emission = blendedMask.rgb;
-	o.Occlusion = blendedMask.a;
-
-	// Specular Smoothness
-	float4 spec1 = AI_SAMPLEBIAS( _Specular, sampler_Specular, parallax1, textureBias);
-	float4 spec2 = AI_SAMPLEBIAS( _Specular, sampler_Specular, parallax2, textureBias);
-	float4 spec3 = AI_SAMPLEBIAS( _Specular, sampler_Specular, parallax3, textureBias);
-	float4 blendedSpec = spec1 * weights.x  + spec2 * weights.y + spec3 * weights.z;
-	o.Specular = blendedSpec.rgb;
-	o.Smoothness = blendedSpec.a;
-*/
-
 	
 	// normal depth
 	float4 normals1 = tex2Dbias( _Normals, float4( parallax1, 0, textureBias) );
@@ -273,12 +302,13 @@ inline void OctaImpostorFragment(in ImposterData imp,inout half3 Normal, inout f
 
 	//float3 localNormal = blendedNormal.rgb * 2.0 - 1.0;
 	//localNormal = float3(localNormal.x,localNormal.y,localNormal.z);
-	float3 localNormal = blendedNormal.rgb;
+	float3 localNormal = blendedNormal.rgb
+	;
 	//float3 worldNormal = UnityObjectToWorldNormal( localNormal);
 	Normal = localNormal;
 	
 	float3 viewPos = imp.viewPos.xyz;
-	float depthOffset = ( ( parallaxSample1.a * weights.x + parallaxSample2.a * weights.y + parallaxSample3.a * weights.z ) - 0.5 /** 2.0 - 1.0*/ ) /** 0.5*/ * _DepthSize * length( ai_ObjectToWorld[ 2 ].xyz );
+	float depthOffset = ( ( depth1 * weights.x + depth2 * weights.y + depth3 * weights.z ) - 0.5 /** 2.0 - 1.0*/ ) /** 0.5*/ * _DepthSize * length( ai_ObjectToWorld[ 2 ].xyz );
 	
 		
 	// else add offset normally
