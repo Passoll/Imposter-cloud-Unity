@@ -62,7 +62,7 @@ float2 ParallaxMapping(float4 frame, inout float depth)
 	
 	float depthlod = 1.0;
 	//高度层数
-	float numLayers = 8;
+	float numLayers = 20;
 	//每层高度
 	float layerHeight = 1.0 / numLayers;
 	// 当前层级高度
