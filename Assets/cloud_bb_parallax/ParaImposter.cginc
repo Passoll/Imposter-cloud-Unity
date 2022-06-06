@@ -62,29 +62,29 @@ float2 ParallaxMapping(float4 frame, inout float depth)
 	
 	float depthlod = 1.0;
 	//高度层数
-	float numLayers = 5;
+	float numLayers = 8;
 	//每层高度
 	float layerHeight = 1.0 / numLayers;
 	// 当前层级高度
-	float currentLayerHeight = 0.5;
+	float currentLayerHeight = 0;
 	//视点方向偏移总量
 	float2 P = frame.xy * _HeightScale / _Frames; 
 	//每层高度uv偏移量
 	float2 deltaTexCoords = P / numLayers;
 	//当前 UV
 	float2  currentTexCoords = frame.zw;
-	float currentHeightMapValue = 0.5 - tex2Dlod( _Normals, float4( frame.zw, 0, depthlod)).a ;
+	float currentHeightMapValue = tex2Dlod( _Normals, float4( frame.zw, 0, depthlod)).a ;
 	while(currentLayerHeight < currentHeightMapValue)
 	{
 		// 按高度层级进行 UV 偏移
-		currentTexCoords += deltaTexCoords;
+		currentTexCoords -= deltaTexCoords;
 		// 从高度贴图采样获取的高度
-		currentHeightMapValue = 0.5 - tex2Dlod( _Normals, float4( currentTexCoords, 0, depthlod)).a;  
+		currentHeightMapValue = tex2Dlod( _Normals, float4( currentTexCoords, 0, depthlod)).a;  
 		// 采样点高度
-		currentLayerHeight -= layerHeight;  
+		currentLayerHeight += layerHeight;  
 	}
 	//前一个采样的点
-	float2 prevTexCoords = currentTexCoords - deltaTexCoords;
+	float2 prevTexCoords = currentTexCoords + deltaTexCoords;
     
 	//线性插值
 	float afterHeight  = currentHeightMapValue - currentLayerHeight;
