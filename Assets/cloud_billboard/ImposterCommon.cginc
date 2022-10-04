@@ -285,8 +285,7 @@ void ImposterVertex( inout ImposterData imp )
     half3 imposterPivotOffset = _ImposterOffset.xyz;
     half framesMinusOne = _ImposterFrames-1;//count of imposter piece,why minus1?
     
- 
-                float3 objectScale = float3(length(float3(objectToWorld[0].x, objectToWorld[1].x, objectToWorld[2].x)),
+    float3 objectScale = float3(length(float3(objectToWorld[0].x, objectToWorld[1].x, objectToWorld[2].x)),
                                              length(float3(objectToWorld[0].y, objectToWorld[1].y, objectToWorld[2].y)),
                                              length(float3(objectToWorld[0].z, objectToWorld[1].z, objectToWorld[2].z)));
     //pivot to camera ray

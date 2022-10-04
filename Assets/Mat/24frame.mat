@@ -73,9 +73,9 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _BumpScale: 1
-    - _ClipMask: 0.032
+    - _ClipMask: 0.048
     - _Cutoff: 0.5
-    - _DepthSize: 0
+    - _DepthSize: -0.24
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _Fadedis: 40

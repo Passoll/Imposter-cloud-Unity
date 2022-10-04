@@ -29,7 +29,7 @@
 		
 		Pass
 				{
-					Tags { "LightMode"="ForwardBase" }
+					Tags { "RenderPipeline"="UniversalPipeline"}
 					ZWrite On
 					Blend SrcAlpha OneMinusSrcAlpha
 					ColorMask rgb
@@ -122,10 +122,7 @@
 							float lthick = baseTex.a ;
 							float thickness = 1 - exp(-5 * lthick );
 							
-							color.a = saturate(thickness * 1.2 * dis);  ;
-							
-							
-							
+							color.a = saturate(thickness * 1.2 * dis);  
 							
 							float a = 0.33;
 							float edgeatten =10;
@@ -149,8 +146,7 @@
 	
 							//color.rgb = 0.25 * _Ambientcolor * (1.5-NL) + forward_scattering * 0.9 ;
 							color.rgb = forward_scattering + directlight + 0.45 * _Ambientcolor * (1.5-NL)*(1- forward_scattering) + backlight;
-							//color.rgb = backlight;
-							//return half4(baseTex.rgb ,1);
+						
 
 							return color;
 						}
