@@ -5,6 +5,8 @@ Imposter cloud rendered
 
 ![4245773983](README.assets/4245773983.gif)
 
-More can be seem on my blog
+This post is a sample of rendering the cloud with imposter method, with the imposter material generated from Houdini. There is still much feature to add.
+
+More technical details can be seem on my blog
 
 https://aysebin.top/index.php/archives/353.html
